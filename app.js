@@ -33,15 +33,15 @@ app.post('/fetch', async (req, res) => {
     const $ = cheerio.load(html);
     
     // Function to replace text but skip URLs and attributes
-    function replaceYaleWithNHCC(i, el) {
+    function replaceYaleWithFale(i, el) {
       if ($(el).children().length === 0 || $(el).text().trim() !== '') {
         // Get the HTML content of the element
         let content = $(el).html();
         
         // Only process if it's a text node
         if (content && $(el).children().length === 0) {
-          // Replace Yale with New Haven Community College in text content only
-          content = content.replace(/Yale/g, 'New Haven Community College').replace(/yale/g, 'New Haven Community College');
+          // Replace Yale with Fale in text content only
+          content = content.replace(/Yale/g, 'Fale').replace(/yale/g, 'fale');
           $(el).html(content);
         }
       }
@@ -53,14 +53,14 @@ app.post('/fetch', async (req, res) => {
     }).each(function() {
       // Replace text content but not in URLs or attributes
       const text = $(this).text();
-      const newText = text.replace(/Yale/g, 'New Haven Community College').replace(/yale/g, 'New Haven Community College');
+      const newText = text.replace(/Yale/g, 'Fale').replace(/yale/g, 'fale');
       if (text !== newText) {
         $(this).replaceWith(newText);
       }
     });
     
     // Process title separately
-    const title = $('title').text().replace(/Yale/g, 'New Haven Community College').replace(/yale/g, 'New Haven Community College');
+    const title = $('title').text().replace(/Yale/g, 'Fale').replace(/yale/g, 'fale');
     $('title').text(title);
     
     return res.json({ 
@@ -79,5 +79,5 @@ app.post('/fetch', async (req, res) => {
 
 // Start the server
 app.listen(PORT, () => {
-  console.log(`NHCCproxy server running at http://localhost:${PORT}`);
+  console.log(`Faleproxy server running at http://localhost:${PORT}`);
 });
