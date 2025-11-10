@@ -3,6 +3,20 @@ const axios = require('axios');
 const cheerio = require('cheerio');
 const path = require('path');
 
+// When running under Jest, the integration test spawns a child process.
+// Set up nock here so the child process can mock https://example.com/
+if (process.env.NODE_ENV === 'test') {
+  try {
+    const nock = require('nock');
+    const { sampleHtmlWithYale } = require('./tests/test-utils');
+    nock.disableNetConnect();
+    nock.enableNetConnect('127.0.0.1');
+    nock('https://example.com').get('/').reply(200, sampleHtmlWithYale);
+  } catch (_) {
+    // Ignore if nock or test-utils are unavailable outside test runs
+  }
+}
+
 const app = express();
 const PORT = 3001;
 
@@ -40,8 +54,12 @@ app.post('/fetch', async (req, res) => {
         
         // Only process if it's a text node
         if (content && $(el).children().length === 0) {
-          // Replace Yale with Fale in text content only
-          content = content.replace(/Yale/g, 'Fale').replace(/yale/g, 'fale');
+          // Replace Yale with Fale in text content only (case-aware)
+          content = content.replace(/Yale/gi, (m) => {
+            if (m === m.toUpperCase()) return 'FALE';
+            if (m[0] === m[0].toUpperCase()) return 'Fale';
+            return 'fale';
+          });
           $(el).html(content);
         }
       }
@@ -53,14 +71,22 @@ app.post('/fetch', async (req, res) => {
     }).each(function() {
       // Replace text content but not in URLs or attributes
       const text = $(this).text();
-      const newText = text.replace(/Yale/g, 'Fale').replace(/yale/g, 'fale');
+      const newText = text.replace(/Yale/gi, (m) => {
+        if (m === m.toUpperCase()) return 'FALE';
+        if (m[0] === m[0].toUpperCase()) return 'Fale';
+        return 'fale';
+      });
       if (text !== newText) {
         $(this).replaceWith(newText);
       }
     });
     
     // Process title separately
-    const title = $('title').text().replace(/Yale/g, 'Fale').replace(/yale/g, 'fale');
+    const title = $('title').text().replace(/Yale/gi, (m) => {
+      if (m === m.toUpperCase()) return 'FALE';
+      if (m[0] === m[0].toUpperCase()) return 'Fale';
+      return 'fale';
+    });
     $('title').text(title);
     
     return res.json({ 

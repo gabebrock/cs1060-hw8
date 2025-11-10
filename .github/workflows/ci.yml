@@ -15,10 +15,10 @@ jobs:
         node-version: [18.x, 20.x]
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v3
     
     - name: Use Node.js ${{ matrix.node-version }}
-      uses: actions/setup-node@v4
+      uses: actions/setup-node@v3
       with:
         node-version: ${{ matrix.node-version }}
         cache: 'npm'
@@ -30,32 +30,73 @@ jobs:
       run: npm run test:ci
       
     - name: Upload coverage report
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v3
       with:
         name: coverage-report
         path: coverage/
         
-  deploy:
+  deploy_preview:
     needs: test
-    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+    if: ${{ github.event_name == 'pull_request' || (github.event_name == 'push' && github.ref != 'refs/heads/main' && github.ref != 'refs/heads/master') }}
     runs-on: ubuntu-latest
     
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v3
     
     - name: Setup Node.js
-      uses: actions/setup-node@v4
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18.x'
+    
+    - name: Install Vercel CLI
+      run: npm install --global vercel@latest
+    
+    - name: Pull Vercel Environment Information (preview)
+      env:
+        VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+        VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+      run: vercel pull --yes --environment=preview --token="$VERCEL_TOKEN"
+    
+    - name: Build (preview)
+      env:
+        VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      run: vercel build --token="$VERCEL_TOKEN"
+    
+    - name: Deploy (preview)
+      env:
+        VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      run: vercel deploy --prebuilt --token="$VERCEL_TOKEN"
+
+  deploy:
+    needs: test
+    if: ${{ (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master') && needs.test.result == 'success' }}
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v3
       with:
         node-version: '18.x'
         
     - name: Install Vercel CLI
       run: npm install --global vercel@latest
       
-    - name: Pull Vercel Environment Information
-      run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
+    - name: Pull Vercel Environment Information (production)
+      env:
+        VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+        VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+      run: vercel pull --yes --environment=production --token="$VERCEL_TOKEN"
       
-    - name: Build Project Artifacts
-      run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
+    - name: Build Project Artifacts (production)
+      env:
+        VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      run: vercel build --prod --token="$VERCEL_TOKEN"
       
-    - name: Deploy Project Artifacts to Vercel
-      run: vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }}
+    - name: Deploy Project Artifacts to Vercel (production)
+      env:
+        VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      run: vercel deploy --prebuilt --prod --token="$VERCEL_TOKEN"
