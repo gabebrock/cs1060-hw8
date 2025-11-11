@@ -2,6 +2,7 @@ const axios = require('axios');
 const cheerio = require('cheerio');
 const { exec } = require('child_process');
 const { promisify } = require('util');
+const { spawn } = require('child_process');
 const execAsync = promisify(exec);
 const { sampleHtmlWithYale } = require('./test-utils');
 const nock = require('nock');
@@ -19,12 +20,13 @@ describe('Integration Tests', () => {
     
     // Create a temporary test app file
     await execAsync('cp app.js app.test.js');
-    await execAsync(`sed -i '' 's/const PORT = 3001/const PORT = ${TEST_PORT}/' app.test.js`);
     
-    // Start the test server
-    server = require('child_process').spawn('node', ['app.test.js'], {
+    // Start the test server with PORT provided via environment
+    const env = { ...process.env, PORT: String(TEST_PORT), NODE_ENV: 'test' };
+    server = spawn('node', ['app.test.js'], {
       detached: true,
-      stdio: 'ignore'
+      stdio: 'ignore',
+      env
     });
     
     // Give the server time to start
@@ -48,7 +50,7 @@ describe('Integration Tests', () => {
       .reply(200, sampleHtmlWithYale);
     
     // Make a request to our proxy app
-    const response = await axios.post(`http://localhost:${TEST_PORT}/fetch`, {
+    const response = await axios.post(`http://127.0.0.1:${TEST_PORT}/fetch`, {
       url: 'https://example.com/'
     });
     
@@ -78,7 +80,7 @@ describe('Integration Tests', () => {
 
   test('Should handle invalid URLs', async () => {
     try {
-      await axios.post(`http://localhost:${TEST_PORT}/fetch`, {
+      await axios.post(`http://127.0.0.1:${TEST_PORT}/fetch`, {
         url: 'not-a-valid-url'
       });
       // Should not reach here
@@ -90,7 +92,7 @@ describe('Integration Tests', () => {
 
   test('Should handle missing URL parameter', async () => {
     try {
-      await axios.post(`http://localhost:${TEST_PORT}/fetch`, {});
+      await axios.post(`http://127.0.0.1:${TEST_PORT}/fetch`, {});
       // Should not reach here
       expect(true).toBe(false);
     } catch (error) {
