@@ -18,7 +18,7 @@ if (process.env.NODE_ENV === 'test') {
 }
 
 const app = express();
-const PORT = 3001;
+const PORT = process.env.PORT ? Number(process.env.PORT) : 3001;
 
 // Middleware to parse request bodies
 app.use(express.json());

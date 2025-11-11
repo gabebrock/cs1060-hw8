@@ -2,6 +2,7 @@ const axios = require('axios');
 const cheerio = require('cheerio');
 const { exec } = require('child_process');
 const { promisify } = require('util');
+const { spawn } = require('child_process');
 const execAsync = promisify(exec);
 const { sampleHtmlWithYale } = require('./test-utils');
 const nock = require('nock');
@@ -19,12 +20,13 @@ describe('Integration Tests', () => {
     
     // Create a temporary test app file
     await execAsync('cp app.js app.test.js');
-    await execAsync(`sed -i '' 's/const PORT = 3001/const PORT = ${TEST_PORT}/' app.test.js`);
     
-    // Start the test server
-    server = require('child_process').spawn('node', ['app.test.js'], {
+    // Start the test server with PORT provided via environment
+    const env = { ...process.env, PORT: String(TEST_PORT), NODE_ENV: 'test' };
+    server = spawn('node', ['app.test.js'], {
       detached: true,
-      stdio: 'ignore'
+      stdio: 'ignore',
+      env
     });
     
     // Give the server time to start
